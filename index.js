@@ -26,9 +26,12 @@ app.get('/greet', (req, res) => {
 
 
 
-app.listen(port, () => {
-  console.log(`Node.js app listening on port ${port}`);
-  console.log(`Access it locally at http://localhost:${port}`);
-});
+if (require.main === module) {
+  app.listen(port, () => {
+    console.log(`Node.js app listening on port ${port}`);
+    console.log(`Access it locally at http://localhost:${port}`);
+  });
+}
+
 
 module.exports = app;
