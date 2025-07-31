@@ -21,7 +21,7 @@ app.get('/greet', (req, res) => {
   if (!name) {
     return res.status(400).send('Invalid input: Please provide a name.');
   }
-  res.send(`Hello, ${name}`);
+  res.send(` ${name}`);
 });
 
 
