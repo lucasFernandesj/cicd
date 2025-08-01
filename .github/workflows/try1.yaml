@@ -1,4 +1,4 @@
-name: Deploy to Cloud Run
+name: CI/CD with Security Scan
 
 on:
   push:
@@ -18,25 +18,25 @@ jobs:
       - name: Install dependencies for Snyk scan
         run: npm install --prefer-offline --no-audit --progress=false --loglevel=error # Make npm install more robust and quiet
 
-      # --- CORRECTED: Install Snyk CLI directly with @v2 ---
       - name: Install Snyk CLI
-        uses: snyk/actions/setup-snyk@v2 # <--- CHANGED FROM @master/@v1 TO @v2
+        uses: snyk/actions/setup-snyk@v2 # This action installs the Snyk CLI
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }} # Authenticate the Snyk CLI
 
       - name: Run Snyk Open Source (Dependency) scan
-        uses: snyk/actions/node@v2 # <--- CHANGED FROM @master TO @v2
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }} # Authenticate with Snyk using the secret you added
-        with:
-          args: --all-projects --json-file=snyk-oss-results.json --fail-on=all --debug # Output to JSON and fail on any vulnerability
+        run: snyk test --all-projects --json-file=snyk-oss-results.json --fail-on=all --debug # <--- ADDED --debug for verbose logging
+        # This scans your project's dependencies for known vulnerabilities.
+        # --json-file outputs results to a file, preventing interactive console output.
+        # --fail-on=all ensures the step fails if any vulnerability is found.
+        # --debug provides verbose logging for troubleshooting.
 
       - name: Run Snyk Code (SAST) scan
-        uses: snyk/actions/node@v2 # <--- CHANGED FROM @master TO @v2
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }} # Authenticate with Snyk using the secret
-        with:
-          args: code test . --json-file=snyk-code-results.json --fail-on=all --debug # Explicitly run Snyk Code scan, output to JSON, and fail on any vulnerability
+        run: snyk code test . --json-file=snyk-code-results.json --fail-on=all --debug # <--- ADDED --debug for verbose logging
+        # This scans your custom code for security vulnerabilities like XSS.
+        # '.' specifies to scan the current directory.
+        # --json-file outputs results to a file, preventing interactive console output.
+        # --fail-on=all ensures the step fails if any vulnerability is found.
+        # --debug provides verbose logging for troubleshooting.
 
   test:
     needs: snyk-security-scan # Ensure 'test' only runs if 'snyk-security-scan' succeeds
