@@ -16,12 +16,18 @@ app.get('/bring', (req, res) => {
   res.send('Them back!');
 });
 
+app.get('/xss', (req, res) => {
+  const userInput = req.query.input || 'Guest';
+  res.send(`${userInput}`);
+});
+
+
 app.get('/greet', (req, res) => {
   const name = req.query.name;
   if (!name) {
     return res.status(400).send('Invalid input: Please provide a name.');
   }
-  res.send(` ${name}`);
+  res.send(`${name}`);
 });
 
 
