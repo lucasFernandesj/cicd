@@ -1,30 +1,41 @@
-name: Snyk Scan
+name: Snyk Code Scan (SAST)
 
 on:
   push:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+  security-events: write  # 👈 Needed to upload results to GitHub Code Scanning
+
 jobs:
-  security:
+  snyk-code-scan:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Run Snyk Node scan
-        uses: snyk/actions/node@master
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Snyk CLI
+        uses: snyk/actions/setup@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: test --all-projects --sarif-file-output=snyk.sarif
-#
-      - name: Upload SARIF to GitHub Code Scanning
+
+      - name: Run Snyk Code (SAST) scan
+        run: snyk code test --sarif-file-output=snyk-code.sarif --fail-on=all
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Upload SARIF to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: snyk.sarif
+          sarif_file: snyk-code.sarif
