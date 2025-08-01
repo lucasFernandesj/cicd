@@ -18,17 +18,25 @@ jobs:
       - name: Install dependencies for Snyk scan
         run: npm install --prefer-offline --no-audit --progress=false --loglevel=error # Make npm install more robust and quiet
 
-      # --- CORRECTED: Install Snyk CLI directly with @v1 ---
+      # --- CORRECTED: Install Snyk CLI directly with @v2 ---
       - name: Install Snyk CLI
-        uses: snyk/actions/setup-snyk@v1 # <--- CHANGED FROM @master TO @v1
+        uses: snyk/actions/setup-snyk@v2 # <--- CHANGED FROM @master/@v1 TO @v2
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }} # Authenticate the Snyk CLI
 
       - name: Run Snyk Open Source (Dependency) scan
-        run: snyk test --all-projects --json-file=snyk-oss-results.json --fail-on=all --debug # Run 'snyk test' directly
+        uses: snyk/actions/node@v2 # <--- CHANGED FROM @master TO @v2
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }} # Authenticate with Snyk using the secret you added
+        with:
+          args: --all-projects --json-file=snyk-oss-results.json --fail-on=all --debug # Output to JSON and fail on any vulnerability
 
       - name: Run Snyk Code (SAST) scan
-        run: snyk code test . --json-file=snyk-code-results.json --fail-on=all --debug # Run 'snyk code test' directly
+        uses: snyk/actions/node@v2 # <--- CHANGED FROM @master TO @v2
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }} # Authenticate with Snyk using the secret
+        with:
+          args: code test . --json-file=snyk-code-results.json --fail-on=all --debug # Explicitly run Snyk Code scan, output to JSON, and fail on any vulnerability
 
   test:
     needs: snyk-security-scan # Ensure 'test' only runs if 'snyk-security-scan' succeeds
