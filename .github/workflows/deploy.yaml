@@ -5,36 +5,37 @@ on:
     branches: [ main ]
 
 jobs:
-  
   snyk-security-scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 10 # Add a timeout to prevent indefinite hangs
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20' 
+          node-version: '20' # Use a recent Node.js version for Snyk to run
       - name: Install dependencies for Snyk scan
-        run: npm install --prefer-offline --no-audit --progress=false --loglevel=error 
+        run: npm install --prefer-offline --no-audit --progress=false --loglevel=error # Make npm install more robust and quiet
 
       - name: Run Snyk Open Source (Dependency) scan
-        uses: snyk/actions/node@master 
+        uses: snyk/actions/node@master
         env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }} 
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }} # Authenticate with Snyk using the secret you added
         with:
-          args: --all-projects --json-file=snyk-oss-results.json --fail-on=all 
+          args: --all-projects --json-file=snyk-oss-results.json --fail-on=all --debug # <--- ADDED --debug
+          # Output to JSON, fail on any vulnerability, and enable debug logging
 
       - name: Run Snyk Code (SAST) scan
-        uses: snyk/actions/node@master 
+        uses: snyk/actions/node@master
         env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }} 
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }} # Authenticate with Snyk using the secret
         with:
-          args: code test --json-file=snyk-code-results.json --fail-on=all 
- 
+          args: code test --json-file=snyk-code-results.json --fail-on=all --debug # <--- ADDED --debug
+          # Explicitly run Snyk Code scan, output to JSON, fail on any vulnerability, and enable debug logging
 
   test:
-    needs: snyk-security-scan 
+    needs: snyk-security-scan # Ensure 'test' only runs if 'snyk-security-scan' succeeds
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -52,10 +53,10 @@ jobs:
         run: npm test
 
   deploy:
-    needs: [test, snyk-security-scan] 
+    needs: [test, snyk-security-scan] # Deploy only runs if BOTH 'test' and 'snyk-security-scan' succeed
     permissions:
-      id-token: write 
-      contents: read  
+      id-token: write # Allows fetching the OIDC token from GitHub for GCP authentication
+      contents: read  # Allows the 'actions/checkout' step to read your repository content
 
     runs-on: ubuntu-latest
 
