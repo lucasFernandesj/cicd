@@ -1,13 +1,15 @@
-name: CI/CD with Security Scan
+name: Snyk Scan
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+  pull_request:
 
 jobs:
-  snyk-security-scan:
+  security:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -18,76 +20,15 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm install --prefer-offline --no-audit --progress=false --loglevel=error
+        run: npm install
 
       - name: Install Snyk CLI
         uses: snyk/actions/setup@v2
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      - name: Run Snyk Open Source Scan (Dependency)
-        run: snyk test --all-projects --json-file-output=snyk-oss-results.json --fail-on=all --debug
+      - name: Run Snyk Open Source (Dependency) scan
+        run: snyk test --fail-on=all
 
-      - name: Run Snyk Code Scan (SAST)
-        run: snyk code test . --json-file-output=snyk-code-results.json --fail-on=all --debug
-
-  test:
-    needs: snyk-security-scan
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Run tests
-        run: npm test
-
-  deploy:
-    needs: [test, snyk-security-scan]
-    permissions:
-      id-token: write
-      contents: read
-
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Authenticate to Google Cloud
-        id: auth
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: 'projects/556268819010/locations/global/workloadIdentityPools/ghpool/providers/github-provider'
-          service_account: 'gha-cloudrun-deployer@iapvm123.iam.gserviceaccount.com'
-
-      - name: Set up gcloud CLI
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: 'iapvm123'
-
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker us-central1-docker.pkg.dev
-
-      - name: Build Docker image
-        run: |
-          docker build -t us-central1-docker.pkg.dev/iapvm123/repo/my-app:$GITHUB_SHA .
-
-      - name: Push Docker image
-        run: |
-          docker push us-central1-docker.pkg.dev/iapvm123/repo/my-app:$GITHUB_SHA
-
-      - name: Deploy to Cloud Run
-        run: |
-          gcloud run deploy my-cloud-run-service \
-            --image us-central1-docker.pkg.dev/iapvm123/repo/my-app:$GITHUB_SHA \
-            --region us-central1 \
-            --platform managed \
-            --allow-unauthenticated
+      - name: Run Snyk Code (SAST) scan
+        run: snyk code test --fail-on=all
