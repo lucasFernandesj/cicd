@@ -1,11 +1,39 @@
-name: Deploy to Cloud Run
-
 on:
   push:
     branches: [ main ]
 
 jobs:
-   test:
+
+  snyk-security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22' 
+      - name: Install dependencies
+        run: npm install 
+
+      - name: Run Snyk Open Source (Dependency) scan
+        uses: snyk/actions/node@master 
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }} 
+        with:
+          args: --all-projects 
+         
+
+      - name: Run Snyk Code (SAST) scan
+        uses: snyk/actions/javascript@master 
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }} 
+        with:
+          command: code test 
+       
+
+  test:
+    needs: snyk-security-scan 
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -14,7 +42,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22' 
+          node-version: '22'
 
       - name: Install dependencies
         run: npm install
@@ -22,8 +50,8 @@ jobs:
       - name: Run tests
         run: npm test
 
-   deploy: 
-    needs: test 
+  deploy:
+    needs: [test, snyk-security-scan] 
     permissions:
       id-token: write
       contents: read
