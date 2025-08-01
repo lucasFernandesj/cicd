@@ -23,7 +23,7 @@ jobs:
         run: npm install
 
       - name: Install Snyk CLI
-        uses: snyk/actions/setup@v2
+        uses: snyk/actions/setup
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
