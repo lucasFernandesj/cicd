@@ -15,24 +15,23 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20' 
-      - name: Install dependencies
-        run: npm install 
+      - name: Install dependencies for Snyk scan
+        run: npm install --prefer-offline --no-audit --progress=false --loglevel=error 
 
       - name: Run Snyk Open Source (Dependency) scan
         uses: snyk/actions/node@master 
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }} 
         with:
-          args: --all-projects 
-         
+          args: --all-projects --json-file=snyk-oss-results.json --fail-on=all 
 
       - name: Run Snyk Code (SAST) scan
         uses: snyk/actions/node@master 
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }} 
         with:
-          args: code test 
-          
+          args: code test --json-file=snyk-code-results.json --fail-on=all 
+ 
 
   test:
     needs: snyk-security-scan 
@@ -46,7 +45,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install dependencies
+      - name: Install dependencies for tests
         run: npm install
 
       - name: Run tests
@@ -55,8 +54,8 @@ jobs:
   deploy:
     needs: [test, snyk-security-scan] 
     permissions:
-      id-token: write
-      contents: read
+      id-token: write 
+      contents: read  
 
     runs-on: ubuntu-latest
 
