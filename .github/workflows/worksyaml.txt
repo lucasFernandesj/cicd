@@ -1,0 +1,66 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+   test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22' 
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
+
+   deploy: 
+    needs: test 
+    permissions:
+      id-token: write
+      contents: read
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/556268819010/locations/global/workloadIdentityPools/ghpool/providers/github-provider'
+          service_account: 'gha-cloudrun-deployer@iapvm123.iam.gserviceaccount.com'
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: 'iapvm123'
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      - name: Build Docker image
+        run: |
+          docker build -t us-central1-docker.pkg.dev/iapvm123/repo/my-app:$GITHUB_SHA .
+
+      - name: Push Docker image
+        run: |
+          docker push us-central1-docker.pkg.dev/iapvm123/repo/my-app:$GITHUB_SHA
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy my-cloud-run-service \
+            --image us-central1-docker.pkg.dev/iapvm123/repo/my-app:$GITHUB_SHA \
+            --region us-central1 \
+            --platform managed \
+            --allow-unauthenticated

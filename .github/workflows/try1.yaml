@@ -18,21 +18,27 @@ jobs:
       - name: Install dependencies for Snyk scan
         run: npm install --prefer-offline --no-audit --progress=false --loglevel=error # Make npm install more robust and quiet
 
-      - name: Run Snyk Open Source (Dependency) scan
-        uses: snyk/actions/node@master
+      # --- NEW: Install Snyk CLI directly ---
+      - name: Install Snyk CLI
+        uses: snyk/actions/setup-snyk@master # This action installs the Snyk CLI
         env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }} # Authenticate with Snyk using the secret you added
-        with:
-          args: --all-projects --json-file=snyk-oss-results.json --fail-on=all --debug # <--- ADDED --debug
-          # Output to JSON, fail on any vulnerability, and enable debug logging
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }} # Authenticate the Snyk CLI
+
+      - name: Run Snyk Open Source (Dependency) scan
+        run: snyk test --all-projects --json-file=snyk-oss-results.json --fail-on=all --debug # Run 'snyk test' directly
+        # This scans your project's dependencies for known vulnerabilities.
+        # --json-file outputs results to a file, preventing interactive console output.
+        # --fail-on=all ensures the step fails if any vulnerability is found.
+        # --debug provides verbose logging for troubleshooting.
 
       - name: Run Snyk Code (SAST) scan
-        uses: snyk/actions/node@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }} # Authenticate with Snyk using the secret
-        with:
-          args: code test --json-file=snyk-code-results.json --fail-on=all --debug # <--- ADDED --debug
-          # Explicitly run Snyk Code scan, output to JSON, fail on any vulnerability, and enable debug logging
+        run: snyk code test . --json-file=snyk-code-results.json --fail-on=all --debug # Run 'snyk code test' directly
+        # This scans your custom code for security vulnerabilities like XSS.
+        # '.' specifies to scan the current directory.
+        # --json-file outputs results to a file, preventing interactive console output.
+        # --fail-on=all ensures the step fails if any vulnerability is found.
+        # --debug provides verbose logging for troubleshooting.
+  # --- END NEW SNYK SECURITY SCAN JOB ---
 
   test:
     needs: snyk-security-scan # Ensure 'test' only runs if 'snyk-security-scan' succeeds
