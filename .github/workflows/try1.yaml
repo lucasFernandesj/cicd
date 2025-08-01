@@ -2,33 +2,29 @@ name: Snyk Scan
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
 
 jobs:
   security:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Install Snyk CLI
-        uses: snyk/actions/setup
+      - name: Run Snyk Node scan
+        uses: snyk/actions/node@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test --all-projects --sarif-file-output=snyk.sarif
 
-      - name: Run Snyk Open Source (Dependency) scan
-        run: snyk test --fail-on=all
-
-      - name: Run Snyk Code (SAST) scan
-        run: snyk code test --fail-on=all
+      - name: Upload SARIF to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: snyk.sarif
