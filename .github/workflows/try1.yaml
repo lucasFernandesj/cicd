@@ -7,39 +7,32 @@ on:
 jobs:
   snyk-security-scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 10 # Add a timeout to prevent indefinite hangs
+    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # Use a recent Node.js version for Snyk to run
-      - name: Install dependencies for Snyk scan
-        run: npm install --prefer-offline --no-audit --progress=false --loglevel=error # Make npm install more robust and quiet
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install --prefer-offline --no-audit --progress=false --loglevel=error
 
       - name: Install Snyk CLI
-        uses: snyk/actions/setup-snyk@v2 # This action installs the Snyk CLI
+        uses: snyk/actions/setup@v2
         env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }} # Authenticate the Snyk CLI
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      - name: Run Snyk Open Source (Dependency) scan
-        run: snyk test --all-projects --json-file=snyk-oss-results.json --fail-on=all --debug # <--- ADDED --debug for verbose logging
-        # This scans your project's dependencies for known vulnerabilities.
-        # --json-file outputs results to a file, preventing interactive console output.
-        # --fail-on=all ensures the step fails if any vulnerability is found.
-        # --debug provides verbose logging for troubleshooting.
+      - name: Run Snyk Open Source Scan (Dependency)
+        run: snyk test --all-projects --json-file-output=snyk-oss-results.json --fail-on=all --debug
 
-      - name: Run Snyk Code (SAST) scan
-        run: snyk code test . --json-file=snyk-code-results.json --fail-on=all --debug # <--- ADDED --debug for verbose logging
-        # This scans your custom code for security vulnerabilities like XSS.
-        # '.' specifies to scan the current directory.
-        # --json-file outputs results to a file, preventing interactive console output.
-        # --fail-on=all ensures the step fails if any vulnerability is found.
-        # --debug provides verbose logging for troubleshooting.
+      - name: Run Snyk Code Scan (SAST)
+        run: snyk code test . --json-file-output=snyk-code-results.json --fail-on=all --debug
 
   test:
-    needs: snyk-security-scan # Ensure 'test' only runs if 'snyk-security-scan' succeeds
+    needs: snyk-security-scan
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -50,17 +43,17 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install dependencies for tests
+      - name: Install dependencies
         run: npm install
 
       - name: Run tests
         run: npm test
 
   deploy:
-    needs: [test, snyk-security-scan] # Deploy only runs if BOTH 'test' and 'snyk-security-scan' succeed
+    needs: [test, snyk-security-scan]
     permissions:
-      id-token: write # Allows fetching the OIDC token from GitHub for GCP authentication
-      contents: read  # Allows the 'actions/checkout' step to read your repository content
+      id-token: write
+      contents: read
 
     runs-on: ubuntu-latest
 
