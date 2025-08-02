@@ -1,4 +1,4 @@
-# GitHub Actions workflow to analyze Node.js app with CodeQL and deploy to Cloud Run
+# GitHub Actions workflow to lint, test, and deploy a Node.js app to Cloud Run
 name: Deploy to Cloud Run
 
 on:
@@ -6,37 +6,33 @@ on:
     branches: [ main ]  # Trigger only on push to the main branch
 
 jobs:
-  codeql:
-    name: Analyze (CodeQL)
+  security:
+    name: Security Scan (ESLint + Security Plugin)
     runs-on: ubuntu-latest
-    permissions:
-      security-events: write  # Required to upload results
-      actions: read
-      contents: read
-
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [ 'javascript' ]  # CodeQL will analyze JavaScript (Node.js)
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          languages: ${{ matrix.language }}
+          node-version: '22'
 
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
+      - name: Install dependencies
+        run: npm install
 
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+      - name: Install ESLint and security plugin
+        run: npm install eslint eslint-plugin-security --save-dev
+
+      - name: Run ESLint security checks
+        run: npx eslint . --max-warnings=0
+        # This will fail the job (and block deployment) if any warning or insecure pattern is found
 
   test:
-    needs: codeql  # Only runs if CodeQL job succeeds
+    needs: security  # Only runs if security scan passes
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -53,7 +49,7 @@ jobs:
         run: npm test
 
   deploy:
-    needs: test  # Only runs if tests pass
+    needs: test  # Only runs if tests pass (and security scan already passed)
     permissions:
       id-token: write
       contents: read
