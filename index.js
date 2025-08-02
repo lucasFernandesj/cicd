@@ -35,6 +35,7 @@ app.get('/xss', (req, res) => {
   res.send(`<h1>${payload}</h1>`);
 });
 
+
 if (require.main === module) {
   app.listen(port, () => {
     console.log(`Node.js app listening on port ${port}`);
