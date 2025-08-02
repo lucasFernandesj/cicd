@@ -2,11 +2,13 @@ name: Deploy to Cloud Run
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main ]  
 
 jobs:
-   test:
+  security:
+    name: Security Scan (Semgrep)
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -14,7 +16,30 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22' 
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run Semgrep Scan
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: p/owasp-top-ten  
+          error: true              
+
+  test:
+    name: Run Tests
+    needs: security  
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
 
       - name: Install dependencies
         run: npm install
@@ -22,13 +47,13 @@ jobs:
       - name: Run tests
         run: npm test
 
-   deploy: 
-    needs: test 
+  deploy:
+    name: Deploy to Cloud Run
+    needs: test  
+    runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
-
-    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
