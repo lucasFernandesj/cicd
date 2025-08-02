@@ -1,41 +1,96 @@
-name: Snyk Code Scan (SAST)
+# GitHub Actions workflow to analyze Node.js app with CodeQL and deploy to Cloud Run
+name: Deploy to Cloud Run
 
 on:
   push:
-    branches: [main]
-  pull_request:
-
-permissions:
-  contents: read
-  security-events: write  # 👈 Needed to upload results to GitHub Code Scanning
+    branches: [ main ]  # Trigger only on push to the main branch
 
 jobs:
-  snyk-code-scan:
+  codeql:
+    name: Analyze (CodeQL)
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write  # Required to upload results
+      actions: read
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'javascript' ]  # CodeQL will analyze JavaScript (Node.js)
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  test:
+    needs: codeql  # Only runs if CodeQL job succeeds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install dependencies
         run: npm install
 
-      - name: Install Snyk CLI
-        uses: snyk/actions/setup@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      - name: Run tests
+        run: npm test
 
-      - name: Run Snyk Code (SAST) scan
-        run: snyk code test --sarif-file-output=snyk-code.sarif --fail-on=all
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+  deploy:
+    needs: test  # Only runs if tests pass
+    permissions:
+      id-token: write
+      contents: read
 
-      - name: Upload SARIF to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
         with:
-          sarif_file: snyk-code.sarif
+          workload_identity_provider: 'projects/556268819010/locations/global/workloadIdentityPools/ghpool/providers/github-provider'
+          service_account: 'gha-cloudrun-deployer@iapvm123.iam.gserviceaccount.com'
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: 'iapvm123'
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      - name: Build Docker image
+        run: |
+          docker build -t us-central1-docker.pkg.dev/iapvm123/repo/my-app:$GITHUB_SHA .
+
+      - name: Push Docker image
+        run: |
+          docker push us-central1-docker.pkg.dev/iapvm123/repo/my-app:$GITHUB_SHA
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy my-cloud-run-service \
+            --image us-central1-docker.pkg.dev/iapvm123/repo/my-app:$GITHUB_SHA \
+            --region us-central1 \
+            --platform managed \
+            --allow-unauthenticated
