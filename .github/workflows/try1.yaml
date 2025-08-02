@@ -1,4 +1,4 @@
-# GitHub Actions workflow using Semgrep to scan and deploy a Node.js app
+# GitHub Actions workflow to scan, test, and deploy a Node.js app to Cloud Run
 name: Deploy to Cloud Run
 
 on:
@@ -22,18 +22,15 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Install Semgrep
-        run: |
-          curl -sL https://semgrep.dev/install.sh | bash
-          sudo mv ~/.local/bin/semgrep /usr/local/bin/
-
-      - name: Run Semgrep with OWASP rules
-        run: |
-          semgrep --config=p/owasp-top-ten --error
-        # --error causes the job to fail on any match (e.g. reflected XSS, insecure use of eval, etc.)
+      - name: Run Semgrep Scan
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: p/owasp-top-ten  # Use OWASP Top 10 security rules
+          error: true              # Fail the job if any vulnerabilities are found
 
   test:
-    needs: security  # Only runs if Semgrep security scan passes
+    name: Run Tests
+    needs: security  # Only runs if security scan passes
     runs-on: ubuntu-latest
 
     steps:
@@ -52,12 +49,12 @@ jobs:
         run: npm test
 
   deploy:
-    needs: test  # Only runs if tests and security scan pass
+    name: Deploy to Cloud Run
+    needs: test  # Only runs if tests pass
+    runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
-
-    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
