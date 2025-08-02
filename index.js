@@ -18,7 +18,7 @@ app.get('/bring', (req, res) => {
 
 app.get('/xss', (req, res) => {
   const userInput = req.query.input || 'Guest';
-  res.send(`${userInput}`);
+  res.send(`<h1>${userInput}</h1>`);
 });
 
 
