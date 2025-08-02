@@ -1,9 +1,8 @@
-# GitHub Actions workflow to scan, test, and deploy a Node.js app to Cloud Run
 name: Deploy to Cloud Run
 
 on:
   push:
-    branches: [ main ]  # Trigger only on push to the main branch
+    branches: [ main ]  
 
 jobs:
   security:
@@ -25,12 +24,12 @@ jobs:
       - name: Run Semgrep Scan
         uses: returntocorp/semgrep-action@v1
         with:
-          config: p/owasp-top-ten  # Use OWASP Top 10 security rules
-          error: true              # Fail the job if any vulnerabilities are found
+          config: p/owasp-top-ten  
+          error: true              
 
   test:
     name: Run Tests
-    needs: security  # Only runs if security scan passes
+    needs: security  
     runs-on: ubuntu-latest
 
     steps:
@@ -50,7 +49,7 @@ jobs:
 
   deploy:
     name: Deploy to Cloud Run
-    needs: test  # Only runs if tests pass
+    needs: test  
     runs-on: ubuntu-latest
     permissions:
       id-token: write

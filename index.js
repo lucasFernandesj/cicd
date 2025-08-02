@@ -17,8 +17,8 @@ app.get('/bring', (req, res) => {
 });
 
 app.get('/xss', (req, res) => {
-  const userInput = req.query.input || 'Guest';
-  res.send(`<h1>${userInput}</h1>`);
+  const payload = req.query.payload || 'Guest';
+  res.send(`<h1>${payload}</h1>`);
 });
 
 
@@ -30,7 +30,10 @@ app.get('/greet', (req, res) => {
   res.send(`${name}`);
 });
 
-
+app.get('/xss', (req, res) => {
+  const payload = req.query.payload || 'Guest';
+  res.send(`<h1>${payload}</h1>`);
+});
 
 if (require.main === module) {
   app.listen(port, () => {
