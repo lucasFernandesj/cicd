@@ -1,4 +1,4 @@
-# GitHub Actions workflow to lint, test, and deploy a Node.js app to Cloud Run
+# GitHub Actions workflow using Semgrep to scan and deploy a Node.js app
 name: Deploy to Cloud Run
 
 on:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   security:
-    name: Security Scan (ESLint + Security Plugin)
+    name: Security Scan (Semgrep)
     runs-on: ubuntu-latest
 
     steps:
@@ -22,15 +22,18 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Install ESLint and security plugin
-        run: npm install eslint eslint-plugin-security --save-dev
+      - name: Install Semgrep
+        run: |
+          curl -sL https://semgrep.dev/install.sh | bash
+          sudo mv ~/.local/bin/semgrep /usr/local/bin/
 
-      - name: Run ESLint security checks
-        run: npx eslint . --max-warnings=0
-        # This will fail the job (and block deployment) if any warning or insecure pattern is found
+      - name: Run Semgrep with OWASP rules
+        run: |
+          semgrep --config=p/owasp-top-ten --error
+        # --error causes the job to fail on any match (e.g. reflected XSS, insecure use of eval, etc.)
 
   test:
-    needs: security  # Only runs if security scan passes
+    needs: security  # Only runs if Semgrep security scan passes
     runs-on: ubuntu-latest
 
     steps:
@@ -49,7 +52,7 @@ jobs:
         run: npm test
 
   deploy:
-    needs: test  # Only runs if tests pass (and security scan already passed)
+    needs: test  # Only runs if tests and security scan pass
     permissions:
       id-token: write
       contents: read
