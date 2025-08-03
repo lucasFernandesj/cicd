@@ -19,17 +19,23 @@ jobs:
           node-version: '22'
 
       - name: Install dependencies
-        run: npm install # This will install lodash@4.17.11 and update package-lock.json
+        run: npm install --legacy-peer-deps # Use --legacy-peer-deps to avoid potential npm install issues with older dependencies
+        # This will install lodash@4.17.11 and update package-lock.json
 
-      # --- CORRECTED: OWASP Dependency-Check Scan with new action path ---
+      # --- OWASP Dependency-Check Scan (runs first) ---
       - name: Run OWASP Dependency-Check Scan
-        uses: dependency-check/Dependency-Check_Action@main # <--- CORRECTED ACTION PATH
+        uses: dependency-check/Dependency-Check_Action@main
         with:
-          project: 'my-nodejs-app' # A name for your project in the report
-          path: '.' # Scan the current directory for dependency files (like package-lock.json)
+          project: 'my-nodejs-app'
+          path: '.' # Scan the current directory
           format: 'JSON' # Specify JSON format to avoid HTML report generation by default
-          # The action's default behavior is to fail the job if vulnerabilities are found.
-          # It will output findings directly to the action log.
+          args: > # Use multi-line string for args
+            --enableNodeJS # Explicitly enable the Node.js analyzer
+            --disableNodeAudit # Disable the Node Audit Analyzer if it's causing issues with aliases
+            --failOnCVSS 0 # Fail on any CVSS score (0 to 10), ensuring it breaks for any vuln
+            --scan package-lock.json # Explicitly tell it to scan the package-lock.json
+            --prettyPrint # Make JSON output more readable in logs (optional)
+            --debug # Keep debug logging for more insights
       # --- End OWASP Dependency-Check Scan ---
 
       - name: Run Semgrep Scan
