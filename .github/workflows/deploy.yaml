@@ -6,7 +6,7 @@ on:
 
 jobs:
   security:
-    name: Security Scan (Semgrep)
+    name: Security Scan (OWASP Dependency-Check & Semgrep) # Updated job name for clarity
     runs-on: ubuntu-latest
 
     steps:
@@ -19,7 +19,16 @@ jobs:
           node-version: '22'
 
       - name: Install dependencies
-        run: npm install
+        run: npm install # This will install lodash@4.17.11 and update package-lock.json
+
+      # --- OWASP Dependency-Check Scan (runs first) ---
+      - name: Run OWASP Dependency-Check Scan
+        uses: jeremylong/dependency-check-action@v1.2.0 # Using a specific stable version
+        with:
+          project: 'my-nodejs-app' # A name for your project in the report
+          scan: '.' # Scan the current directory for dependency files (like package-lock.json)
+          # This action will output findings directly to the action log and fail the job if vulnerabilities are found.
+      # --- End OWASP Dependency-Check Scan ---
 
       - name: Run Semgrep Scan
         uses: returntocorp/semgrep-action@v1
