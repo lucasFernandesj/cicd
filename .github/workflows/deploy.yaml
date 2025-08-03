@@ -6,7 +6,7 @@ on:
 
 jobs:
   security:
-    name: Security Scan (Trivy SCA & Semgrep) # Updated job name
+    name: Security Scan (Semgrep)
     runs-on: ubuntu-latest
 
     steps:
@@ -19,22 +19,15 @@ jobs:
           node-version: '22'
 
       - name: Install dependencies
-        run: npm install # This will ensure package-lock.json is up-to-date with lodash@4.17.11
-
-      # --- NEW: Trivy SCA Scan ---
+        run: npm install
+        
       - name: Run Trivy Dependency Scan
-        uses: aquasecurity/trivy-action@master # Using the official Trivy GitHub Action
+        uses: aquasecurity/trivy-action@master 
         with:
-          # Trivy will automatically detect and scan package-lock.json for Node.js dependencies
-          scan-type: 'fs' # Scan the file system (your repository)
-          severity: 'CRITICAL,HIGH,MEDIUM,LOW' # Report vulnerabilities of all severities
-          # Trivy will fail the action by default if vulnerabilities are found.
-          # No API key is needed for this basic dependency scanning.
-          format: 'table' # Output format directly to the console for easy viewing
-          exit-code: '1' # Ensure the job fails if any vulnerability is found
-          # debug: true # Uncomment for verbose logging if needed
-      # --- END NEW ---
-
+          scan-type: 'fs' 
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
+          format: 'table' 
+          exit-code: '1' 
       - name: Run Semgrep Scan
         uses: returntocorp/semgrep-action@v1
         with:
@@ -103,3 +96,16 @@ jobs:
             --region us-central1 \
             --platform managed \
             --allow-unauthenticated
+
+
+
+
+
+
+
+
+
+
+
+
+
