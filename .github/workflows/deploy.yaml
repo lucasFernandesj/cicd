@@ -6,7 +6,7 @@ on:
 
 jobs:
   security:
-    name: Security Scan (OWASP Dependency-Check & Semgrep)
+    name: Security Scan (Trivy SCA & Semgrep) # Updated job name
     runs-on: ubuntu-latest
 
     steps:
@@ -19,24 +19,21 @@ jobs:
           node-version: '22'
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps # Use --legacy-peer-deps to avoid potential npm install issues with older dependencies
-        # This will install lodash@4.17.11 and update package-lock.json
+        run: npm install # This will ensure package-lock.json is up-to-date with lodash@4.17.11
 
-      # --- OWASP Dependency-Check Scan (runs first) ---
-      - name: Run OWASP Dependency-Check Scan
-        uses: dependency-check/Dependency-Check_Action@main
+      # --- NEW: Trivy SCA Scan ---
+      - name: Run Trivy Dependency Scan
+        uses: aquasecurity/trivy-action@master # Using the official Trivy GitHub Action
         with:
-          project: 'my-nodejs-app'
-          path: '.' # Scan the current directory
-          format: 'JSON' # Specify JSON format to avoid HTML report generation by default
-          args: > # Use multi-line string for args
-            --enableNodeJS # Explicitly enable the Node.js analyzer
-            --disableNodeAudit # Disable the Node Audit Analyzer if it's causing issues with aliases
-            --failOnCVSS 0 # Fail on any CVSS score (0 to 10), ensuring it breaks for any vuln
-            --scan package-lock.json # Explicitly tell it to scan the package-lock.json
-            --prettyPrint # Make JSON output more readable in logs (optional)
-            --debug # Keep debug logging for more insights
-      # --- End OWASP Dependency-Check Scan ---
+          # Trivy will automatically detect and scan package-lock.json for Node.js dependencies
+          scan-type: 'fs' # Scan the file system (your repository)
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW' # Report vulnerabilities of all severities
+          # Trivy will fail the action by default if vulnerabilities are found.
+          # No API key is needed for this basic dependency scanning.
+          format: 'table' # Output format directly to the console for easy viewing
+          exit-code: '1' # Ensure the job fails if any vulnerability is found
+          # debug: true # Uncomment for verbose logging if needed
+      # --- END NEW ---
 
       - name: Run Semgrep Scan
         uses: returntocorp/semgrep-action@v1
