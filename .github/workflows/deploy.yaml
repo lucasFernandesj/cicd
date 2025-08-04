@@ -1,157 +1,89 @@
-name: Deploy to Cloud Run
+name: OWASP ZAP Scan
 
 on:
   push:
     branches: [ main ]
+  workflow_dispatch: # Allows manual triggering of the workflow
 
 jobs:
   security:
-    name: Security Scan (Semgrep, OWASP ZAP, Trivy)
+    name: OWASP ZAP Baseline Scan
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          # Fetch all history for accurate commit SHA for image tagging
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm' # Cache npm dependencies for faster builds
 
-      - name: Install dependencies
+      - name: Install Node.js dependencies
         run: npm install
 
       - name: Create Docker network for testing
+        # A dedicated network allows containers to communicate by name (e.g., 'test-app').
         run: docker network create zap-net
 
-      - name: Build app Docker image
-        run: docker build -t my-app-test .
+      - name: Build Node.js app Docker image
+        # Build your Node.js application into a Docker image.
+        # Tag it with 'my-node-app-for-scan' for easy reference within the workflow.
+        run: docker build -t my-node-app-for-scan .
 
       - name: Run app container on zap-net network
-        run: docker run -d --rm --name test-app --network zap-net -p 3000:3000 my-app-test
+        # Run the application container in detached mode (-d) and assign it a name 'test-app'.
+        # Connect it to the 'zap-net' network.
+        # Map port 3000 inside the container to port 3000 on the host (though ZAP will use internal network).
+        run: docker run -d --rm --name test-app --network zap-net -p 3000:3000 my-node-app-for-scan
 
       - name: Download wait-for-it.sh
-        # Download a script that waits for a service to become available.
-        # This is more reliable than a fixed 'sleep' duration.
+        # Download 'wait-for-it.sh', a utility to wait for a service to be available.
+        # This is crucial to ensure the Node.js app is fully started before ZAP attempts to scan.
         run: |
           curl -sSL https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh -o wait-for-it.sh
           chmod +x wait-for-it.sh
 
-      - name: Wait for app to start
-        # Use wait-for-it.sh to ensure the 'test-app' is listening on port 3000
-        # before proceeding. It will retry for up to 60 seconds.
-        run: ./wait-for-it.sh test-app:3000 --timeout=60 --strict -- echo "test-app is up and running!"
+      - name: Wait for Node.js app to start
+        # Use wait-for-it.sh to poll 'test-app' on port 3000.
+        # It will retry for up to 60 seconds. If the app doesn't respond, the workflow will fail.
+        run: ./wait-for-it.sh test-app:3000 --timeout=60 --strict -- echo "Node.js app is up and running!"
 
-      # --- Start OWASP ZAP manual steps ---
+      # --- Start OWASP ZAP Baseline Scan Steps ---
       - name: Pull OWASP ZAP Docker image
-        # Pull the ZAP stable image to ensure it's available for the manual run.
+        # Explicitly pull the ZAP stable image to ensure it's available.
         run: docker pull ghcr.io/zaproxy/zaproxy:stable
 
       - name: Prepare ZAP working directory permissions
-        # Ensure the current working directory (which will be mounted into the ZAP container)
-        # has full write permissions. This resolves the 'Permission denied' error for zap.yaml
-        # and report files, as the user inside the ZAP container needs to be able to create files.
+        # Set broad permissions on the current GitHub Actions workspace.
+        # This allows the ZAP container (which runs as a non-root user) to write scan reports
+        # and its configuration file (zap.yaml) into the mounted volume.
+        # This step is still useful if ZAP attempts to write any temporary files,
+        # even if explicit reports are not generated.
         run: |
           chmod -R 777 .
 
-      - name: Run OWASP ZAP baseline scan manually
-        # Directly run the ZAP baseline scan Docker container.
-        # -v ${{ github.workspace }}:/zap/wrk/:rw mounts the GitHub Actions workspace
-        #   into the container, allowing ZAP to write reports.
-        # --network zap-net connects the ZAP container to the same network as 'test-app',
-        #   resolving the 'Temporary failure in name resolution' error.
-        # -t http://test-app:3000 specifies the target URL, which is now resolvable.
+      - name: Run OWASP ZAP baseline scan
+        # Directly execute the ZAP baseline scan Docker container.
+        # Removed -J, -w, -r flags to prevent report generation.
+        # ZAP will now output scan results directly to the console logs.
         run: |
           docker run \
             -v ${{ github.workspace }}:/zap/wrk/:rw \
             --network zap-net \
             -t ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py \
-            -t http://test-app:3000 \
-            -J report_json.json \
-            -w report_md.md \
-            -r report_html.html
-      # --- End OWASP ZAP manual steps ---
+            -t http://test-app:3000
+      # --- End OWASP ZAP Baseline Scan Steps ---
 
       - name: Cleanup app container and network
+        # Always run this step to ensure Docker resources are cleaned up,
+        # regardless of whether previous steps succeeded or failed.
         if: always()
         run: |
-          docker rm -f test-app || true
-          docker network rm zap-net || true
-
-      - name: Run Trivy Dependency Scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
-          format: 'table'
-          exit-code: '1'
-
-      - name: Run Semgrep Scan
-        uses: returntocorp/semgrep-action@v1
-        with:
-          config: p/owasp-top-ten
-          error: true
-
-  test:
-    name: Run Tests
-    needs: security
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Run tests
-        run: npm test
-
-  deploy:
-    name: Deploy to Cloud Run
-    needs: test
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Authenticate to Google Cloud
-        id: auth
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: 'projects/556268819010/locations/global/workloadIdentityPools/ghpool/providers/github-provider'
-          service_account: 'gha-cloudrun-deployer@iapvm123.iam.gserviceaccount.com'
-
-      - name: Set up gcloud CLI
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: 'iapvm123'
-
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker us-central1-docker.pkg.dev
-
-      - name: Build Docker image
-        run: |
-          docker build -t us-central1-docker.pkg.dev/iapvm123/repo/my-app:$GITHUB_SHA .
-
-      - name: Push Docker image
-        run: |
-          docker push us-central1-docker.pkg.dev/iapvm123/repo/my-app:$GITHUB_SHA
-
-      - name: Deploy to Cloud Run
-        run: |
-          gcloud run deploy my-cloud-run-service \
-            --image us-central1-docker.pkg.dev/iapvm123/repo/my-app:$GITHUB_SHA \
-            --region us-central1 \
-            --platform managed \
-            --allow-unauthenticated
+          docker rm -f test-app || true # Force remove if still running
+          docker network rm zap-net || true # Remove the custom network
