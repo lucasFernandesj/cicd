@@ -2,11 +2,11 @@ name: Deploy to Cloud Run
 
 on:
   push:
-    branches: [ main ]  
+    branches: [ main ]
 
 jobs:
   security:
-    name: Security Scan (Semgrep, ZAP, Trivy)
+    name: Security Scan (Semgrep, OWASP ZAP, Trivy)
     runs-on: ubuntu-latest
 
     steps:
@@ -21,16 +21,16 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Create Docker network
+      - name: Create Docker network for testing
         run: docker network create zap-net
 
       - name: Build app Docker image
         run: docker build -t my-app-test .
 
-      - name: Run app in Docker (background)
-        run: docker run -d --name test-app --network zap-net -p 3000:3000 my-app-test
+      - name: Run app container on zap-net network
+        run: docker run -d --rm --name test-app --network zap-net -p 3000:3000 my-app-test
 
-      - name: Run OWASP ZAP Baseline Scan
+      - name: Run OWASP ZAP baseline scan
         uses: zaproxy/action-baseline@v0.11.0
         with:
           target: 'http://test-app:3000'
@@ -38,29 +38,29 @@ jobs:
         env:
           DOCKER_NETWORK: zap-net
 
-      - name: Stop and clean up containers
+      - name: Cleanup app container and network
         if: always()
         run: |
           docker rm -f test-app || true
           docker network rm zap-net || true
 
       - name: Run Trivy Dependency Scan
-        uses: aquasecurity/trivy-action@master 
+        uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'fs' 
+          scan-type: 'fs'
           severity: 'CRITICAL,HIGH,MEDIUM,LOW'
-          format: 'table' 
-          exit-code: '1' 
+          format: 'table'
+          exit-code: '1'
 
       - name: Run Semgrep Scan
         uses: returntocorp/semgrep-action@v1
         with:
-          config: p/owasp-top-ten  
-          error: true              
+          config: p/owasp-top-ten
+          error: true
 
   test:
     name: Run Tests
-    needs: security  
+    needs: security
     runs-on: ubuntu-latest
 
     steps:
@@ -80,7 +80,7 @@ jobs:
 
   deploy:
     name: Deploy to Cloud Run
-    needs: test  
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       id-token: write
