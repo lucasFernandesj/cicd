@@ -41,6 +41,20 @@ jobs:
         # Map port 3000 inside the container to port 3000 on the host (though ZAP will use internal network).
         run: docker run -d --rm --name test-app --network zap-net -p 3000:3000 my-node-app-for-scan
 
+      # --- Start Debugging Steps for App Startup ---
+      - name: Check running Docker containers
+        # List all Docker containers (even stopped ones) to see the status of 'test-app'.
+        # This helps confirm if the container started and is still running.
+        run: docker ps -a
+
+      - name: Get app container logs
+        # Fetch and print the logs from the 'test-app' container.
+        # This is crucial for identifying any errors during your Node.js app's startup.
+        run: docker logs test-app
+        # Continue even if logs command fails (e.g., container exited too quickly)
+        continue-on-error: true
+      # --- End Debugging Steps for App Startup ---
+
       - name: Download wait-for-it.sh
         # Download 'wait-for-it.sh', a utility to wait for a service to be available.
         # This is crucial to ensure the Node.js app is fully started before ZAP attempts to scan.
