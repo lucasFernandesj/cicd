@@ -30,6 +30,11 @@ jobs:
       - name: Run app container on zap-net network
         run: docker run -d --rm --name test-app --network zap-net -p 3000:3000 my-app-test
 
+      - name: Wait for app to start
+        # Add a delay to ensure the application inside 'test-app' container
+        # is fully started and listening on port 3000 before ZAP connects.
+        run: sleep 10
+
       # --- Start OWASP ZAP manual steps ---
       - name: Pull OWASP ZAP Docker image
         # Pull the ZAP stable image to ensure it's available for the manual run.
