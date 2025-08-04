@@ -35,8 +35,8 @@ jobs:
         with:
           target: 'http://test-app:3000'
           fail_action: true
-        env:
-          DOCKER_NETWORK: zap-net
+          # IMPORTANT: Specify the Docker network for the ZAP container to join
+          docker_network: zap-net 
 
       - name: Cleanup app container and network
         if: always()
