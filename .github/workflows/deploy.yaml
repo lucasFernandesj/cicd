@@ -30,13 +30,36 @@ jobs:
       - name: Run app container on zap-net network
         run: docker run -d --rm --name test-app --network zap-net -p 3000:3000 my-app-test
 
-      - name: Run OWASP ZAP baseline scan
-        uses: zaproxy/action-baseline@v0.11.0
-        with:
-          target: 'http://test-app:3000'
-          fail_action: true
-          # IMPORTANT: Specify the Docker network for the ZAP container to join
-          docker_network: zap-net 
+      # --- Start OWASP ZAP manual steps ---
+      - name: Pull OWASP ZAP Docker image
+        # Pull the ZAP stable image to ensure it's available for the manual run.
+        run: docker pull ghcr.io/zaproxy/zaproxy:stable
+
+      - name: Prepare ZAP working directory permissions
+        # Ensure the current working directory (which will be mounted into the ZAP container)
+        # has full write permissions. This resolves the 'Permission denied' error for zap.yaml
+        # and report files, as the user inside the ZAP container needs to be able to create files.
+        run: |
+          chmod -R 777 .
+
+      - name: Run OWASP ZAP baseline scan manually
+        # Directly run the ZAP baseline scan Docker container.
+        # -v ${{ github.workspace }}:/zap/wrk/:rw mounts the GitHub Actions workspace
+        #   into the container, allowing ZAP to write reports.
+        # --network zap-net connects the ZAP container to the same network as 'test-app',
+        #   resolving the 'Temporary failure in name resolution' error.
+        # -t http://test-app:3000 specifies the target URL, which is now resolvable.
+        run: |
+          docker run \
+            -v ${{ github.workspace }}:/zap/wrk/:rw \
+            --network zap-net \
+            -t ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+            -t http://test-app:3000 \
+            -J report_json.json \
+            -w report_md.md \
+            -r report_html.html
+      # --- End OWASP ZAP manual steps ---
 
       - name: Cleanup app container and network
         if: always()
