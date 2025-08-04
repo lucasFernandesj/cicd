@@ -7,19 +7,34 @@ app.get('/', (req, res) => {
   res.send('Hello');
 });
 
-app.get('/1', (req, res) => {
-  res.send('Hello');
+app.get('/bring', (req, res) => {
+  res.send('Them back!');
 });
 
 app.get('/work', (req, res) => {
   res.send('work');
 });
 
-app.get('/bring', (req, res) => {
-  res.send('Them back!');
+
+
+//VULN
+// SQL Injection vulnerability
+app.get('/user', async (req, res) => {
+  const userId = req.query.id;
+  const result = await db.query(`SELECT * FROM users WHERE id = '${userId}'`);
+  res.json(result.rows);
 });
 
+// Open Redirect vulnerability
+app.get('/redirect', (req, res) => {
+  const target = req.query.url;
+  res.redirect(target);
+});
 
+// Missing security headers
+app.get('/no-security-headers', (req, res) => {
+  res.send('No headers set!');
+});
 
 app.get('/greet', (req, res) => {
   const name = req.query.name;
