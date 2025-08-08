@@ -8,7 +8,7 @@ on:
 env:
   PROJECT_ID: iapvm123
   GKE_CLUSTER: cluster
-  GKE_ZONE: us-central1-a
+  GKE_ZONE: us-central1
   REPOSITORY_NAME: repo
   FRONTEND_IMAGE: frontend
   BACKEND_IMAGE: node
