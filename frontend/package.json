@@ -1,0 +1,19 @@
+{
+  "name": "frontend",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "scripts": {
+    "build": "mkdir -p build && echo 'Building frontend...' > build/index.html && echo 'Done' >> build/index.html && cp src/index.html build/index.html && cp src/App.js build/App.js && cp src/index.js build/index.js",
+    "start": "react-scripts start"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.12.10",
+    "@babel/core": "^7.12.10",
+    "@babel/preset-env": "^7.12.11",
+    "@babel/preset-react": "^7.12.10"
+  }
+}
