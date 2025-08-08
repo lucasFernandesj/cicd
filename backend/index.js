@@ -4,16 +4,14 @@ const port = process.env.PORT || 3000;
 
 
 app.get('/data', (req, res) => {
-    res.json({ message: 'Hello from the backend! This is the first endpoint.' });
+    res.json({ message: '/data endpoint works' });
 });
 
 app.get('/hello', (req, res) => {
-    res.json({ message: 'Hello from the backend! This is the second endpoint.' });
+    res.json({ message: '/hello endpoint works' });
 });
 
 app.listen(port, () => {
     console.log(`Backend listening on port ${port}`);
 });
 
-//
-//

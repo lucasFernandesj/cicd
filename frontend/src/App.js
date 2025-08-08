@@ -5,7 +5,6 @@ function App() {
   const [proxyData, setProxyData] = useState('Loading proxy data...');
 
   useEffect(() => {
-    // Fetch data from the backend through the Nginx proxy
     fetch('/api/data')
       .then(response => response.json())
       .then(data => {
@@ -16,7 +15,6 @@ function App() {
         setBackendData('Error fetching backend data:', error);
       });
 
-    // A second fetch request to test another endpoint
     fetch('/api/hello')
       .then(response => response.json())
       .then(data => {
@@ -30,8 +28,7 @@ function App() {
 
   return (
     <div>
-      <h1>React Frontend</h1>
-      <p >This is a simple React app. It makes two fetch requests to the backend.</p>
+
       <div>
         <h3>Backend Endpoint 1: <code>/api/data</code></h3>
         <p>{backendData}</p>
